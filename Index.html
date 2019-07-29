@@ -1,0 +1,29 @@
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+  <?!= include_("CalendarStyle"); ?>
+  <?!= include_("Stylesheet"); ?>
+</head>
+
+<body>
+<header>
+  <h2>Columns Calendar</h2>
+</header>
+
+<span id="span__inputs">
+  <button class="action" value="today">Today</button>
+  <label for="input__date">or select date:</label>
+  <input type="date" id="input__date" required pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"/>
+  <button value="idPicker" disabled>Select calendars</button>
+  <select name="map" disabled>
+    <option value="calendars" selected >Calendars</option>
+    <option value="locations">Locations</option>
+    <option value="titles">Titles</option>
+  </select>
+</span>
+
+<?!= include_("Calendar"); ?>
+<?!= include_("script"); ?>
+</body>
+</html>

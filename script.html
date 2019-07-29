@@ -1,0 +1,211 @@
+<script>
+/* global google Calendar */
+let calendarCache = null;
+let checkedIDcache = null;
+const maps = {
+  calendars: function(events) {
+    events = events.slice();
+    events.sort((a, b) => {
+      if (a.originalCalendarId < b.originalCalendarId) {
+        return -1;
+      }
+      if (a.originalCalendarId > b.originalCalendarId) {
+        return 1;
+      }
+      return 0;
+    });
+    const result = [];
+    while (events.length) {
+      const calId = events[0].originalCalendarId;
+      const name = events[0].calendarName;
+      const nextCalIndex = events
+        .findIndex(event => event.originalCalendarId !== calId);
+      result.push({
+        name,
+        events: events.splice(0, (nextCalIndex === -1 ?
+          events.length : nextCalIndex)),
+      });
+    }
+    return result;
+  },
+     
+  /**
+   * columnsByName is a map for Calendar.print
+   * this organizes the columns by name
+   */
+  titles: function (events) {
+    const names = new Set();
+    events.forEach(event => {
+      names.add(event.name);
+    });
+    const result = [];
+    names.forEach(name => {
+      result.push({
+        name,
+        events: events.filter(event => event.name === name),
+      });
+    });
+    return result;
+  },
+
+  /**
+   * columnsByLocation is a map for Calendar.print
+   * this organizes the columns into locations
+   * events without locations are ignored
+   */
+  locations: function (events) {
+    const locations = new Set();
+    events.forEach(event => {
+      if (! event.location) {
+        return;
+      }
+      locations.add(event.location);
+    });
+    const result = [];
+    locations.forEach(location => {
+      result.push({
+        name: location,
+        events: events.filter(event => event.location === location),
+      });
+    });
+    return result;
+  },
+};
+const calendar = new Calendar(undefined, "7AM", "2AM");
+const dateSelect = document.querySelector('input[type="date"]');
+const mapSelect = document.querySelector('select[name="map"]');
+const todayButton = document.querySelector('button[value="today"]');
+const idPickerButton = document.querySelector('button[value="idPicker"]');
+
+// event listeners
+todayButton.addEventListener("click", () => {
+  const currentValue = dateSelect.value;
+  if (initDate(dateSelect) === currentValue) {
+    return;
+  }
+  calendarChange();
+});
+idPickerButton.addEventListener("click", () => {
+  popup(makeMultiCalInput(calendarCache));
+});
+dateSelect.addEventListener("change", calendarChange);
+mapSelect.addEventListener("change", mapChange);
+
+// initialize: get calendar IDs from server, initalize date select
+google.script.run
+  .withSuccessHandler((calendars) => {
+    calendarCache = calendars.slice();
+    unlock();
+  }).getAllCalendarIDs();
+initDate(dateSelect);
+
+/**
+ * calendarChange refreshes the calendar
+ * both the date and calendar select values must be valid
+ */
+function calendarChange() {
+  if (! inputsAreValid()) {
+    return;
+  }
+  getMultiCalendars(checkedIDcache);
+  calendar.empty();
+}
+
+function getChecked() {
+  const boxes = document.querySelectorAll('input[type="checkbox"]');
+  const ids = [];
+  for (let i = 0; i < boxes.length; ++i) {
+    if (boxes[i].checked) {
+      ids.push(boxes[i].value);
+    }
+  }
+  checkedIDcache = ids.slice();
+  return ids;
+}
+
+function getMultiCalendars(cachedIDs) {
+  const ids = cachedIDs || getChecked();
+  google.script.run
+    .withSuccessHandler((result) => {
+      calendar.print(result.flat(), maps.calendars);
+    }).getCalendars({ids, date: dateSelect.value});
+}
+
+/**
+ * initDate sets the date input to the current date
+ * @returns {String} - "yyyy-mm-dd", the value of the input
+ */
+function initDate(dateInput) {
+  const date = new Date();
+  const month = ("" + (date.getMonth() + 1)).padStart(2, "0");
+  const day = ("" + date.getDate()).padStart(2, "0");
+  const string = `${date.getFullYear()}-${month}-${day}`;
+  dateInput.value = string;
+  return string;
+}
+
+function inputsAreValid() {
+  if (! /\d{4}-\d{2}-\d{2}/.test(dateSelect.value)) { // yyyy-mm-dd
+    return false;
+  }
+  return true;
+}
+
+function mapChange() {
+  if (! inputsAreValid() || checkedIDcache === null) {
+    return;
+  }
+  calendar.print(null, maps[mapSelect.value]);
+}
+
+/**
+ * @param {string} calendars[i].id
+ * @param {string} calendars[i].name
+ * @returns {HTMLElement} - <div> with list of <input type="checkbox">
+ */
+function makeMultiCalInput(calendars) {
+  const container = document.createElement("div");
+  calendars.forEach((calendar, index) => {
+    const wrapper = document.createElement("div");
+    const checkbox = document.createElement("input");
+    checkbox.setAttribute("type", "checkbox");
+    checkbox.setAttribute("name", "multical");
+    checkbox.setAttribute("value", calendar.id);
+    checkbox.style.float = "right";
+    const id = `calendar__checkbox__${index}`;
+    checkbox.setAttribute("id", id);
+    const label = document.createElement("label");
+    label.setAttribute("for", id);
+    label.textContent = calendar.name;
+    wrapper.appendChild(label);
+    wrapper.appendChild(checkbox);
+    container.appendChild(wrapper);
+  });
+  const button = document.createElement("button");
+  button.textContent = "Show Calendars";
+  button.style.float = "left";
+  button.addEventListener("click", () => {
+    getMultiCalendars();
+    document.querySelector(".modal").remove();
+  });
+  container.appendChild(button);
+  return container;
+}
+
+function popup(child) {
+  const modal = document.createElement("div");
+  modal.classList.add("modal");
+  const closeButton = document.createElement("button");
+  closeButton.textContent = "Close";
+  closeButton.style.float = "right";
+  closeButton.addEventListener("click", () => modal.remove());
+  modal.appendChild(child);
+  modal.appendChild(closeButton);
+  document.body.appendChild(modal);
+}
+
+function unlock() {
+  idPickerButton.removeAttribute("disabled");
+  mapSelect.removeAttribute("disabled");
+}
+</script>
