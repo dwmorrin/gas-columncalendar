@@ -1,7 +1,7 @@
 <script>
 /* global google Calendar */
 let calendarCache = null;
-let checkedIDcache = null;
+let checkedIdSet = null;
 const maps = {
   calendars: function(events) {
     events = events.slice();
@@ -107,7 +107,7 @@ function calendarChange() {
   if (! inputsAreValid()) {
     return;
   }
-  getMultiCalendars(checkedIDcache);
+  getMultiCalendars(Array.from(checkedIdSet));
   calendar.empty();
 }
 
@@ -119,7 +119,7 @@ function getChecked() {
       ids.push(boxes[i].value);
     }
   }
-  checkedIDcache = ids.slice();
+  checkedIdSet = new Set(ids);
   return ids;
 }
 
@@ -127,7 +127,7 @@ function getMultiCalendars(cachedIDs) {
   const ids = cachedIDs || getChecked();
   google.script.run
     .withSuccessHandler((result) => {
-      calendar.print(result.flat(), maps.calendars);
+      calendar.print(result.flat(), maps[mapSelect.value]);
     }).getCalendars({ids, date: dateSelect.value});
 }
 
@@ -152,7 +152,7 @@ function inputsAreValid() {
 }
 
 function mapChange() {
-  if (! inputsAreValid() || checkedIDcache === null) {
+  if (! inputsAreValid() || checkedIdSet === null) {
     return;
   }
   calendar.print(null, maps[mapSelect.value]);
@@ -171,6 +171,9 @@ function makeMultiCalInput(calendars) {
     checkbox.setAttribute("type", "checkbox");
     checkbox.setAttribute("name", "multical");
     checkbox.setAttribute("value", calendar.id);
+    if (checkedIdSet && checkedIdSet.has(calendar.id)) {
+      checkbox.setAttribute("checked", true);
+    }
     checkbox.style.float = "right";
     const id = `calendar__checkbox__${index}`;
     checkbox.setAttribute("id", id);
@@ -183,6 +186,7 @@ function makeMultiCalInput(calendars) {
   });
   const button = document.createElement("button");
   button.textContent = "Show Calendars";
+  button.classList.add("create");
   button.style.float = "left";
   button.addEventListener("click", () => {
     getMultiCalendars();
