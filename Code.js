@@ -2,7 +2,7 @@
 function doGet() {
   var template = HtmlService.createTemplateFromFile("Index");
   var html = template.evaluate();
-  html.setTitle("ReMu Calendar");
+  html.setTitle("Column Calendar Demo");
   return html;
 }
 
