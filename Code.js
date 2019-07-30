@@ -1,9 +1,14 @@
 /* exported doGet */
-function doGet() {
-  var template = HtmlService.createTemplateFromFile("Index");
-  var html = template.evaluate();
-  html.setTitle("Column Calendar Demo");
-  return html;
+function doGet(request) {
+  if (! request.content) {
+    var template = HtmlService.createTemplateFromFile("Index");
+    var html = template.evaluate();
+    html.setTitle("Column Calendar Demo");
+    return html;
+  }
+  if (request.content.type === "init") {
+    return {ids: getAllCalendarIDs(), preferences: getPreferences()};
+  }
 }
 
 /**
@@ -76,6 +81,11 @@ function getAllCalendarIDs() {
   });
 }
 
+/* exported getPreferences */
+function getPreferences() {
+  return PropertiesService.getUserProperties().getProperties();
+}
+
 /* exported include_ */
 function include_(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
@@ -95,4 +105,12 @@ function parseDateString_(dateString) {
     "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
   ][+match[2]] + " " + match[3] + ", " + match[1]);
+}
+
+/* exported setPreferences */
+function setPreferences(request) {
+  var userProps = PropertiesService.getUserProperties();
+  for (var key in request.preferences) {
+    userProps.setProperty(key, request.preferences[key]);
+  }
 }

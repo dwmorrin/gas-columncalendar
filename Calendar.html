@@ -11,7 +11,7 @@ class Calendar {
    *     an early morning end time ("2 AM" would imply 2 in the morning),
    *   numbers greater than 24 imply early morning as well.
    */
-  constructor(container = document.body, startingHour = 8, endingHour = 26) {
+  constructor({container = document.body, startingHour = 8, endingHour = 26} = {}) {
     this.container = container;
     if (typeof startingHour === "string") {
       this.startingHour = stringToHour(startingHour);
