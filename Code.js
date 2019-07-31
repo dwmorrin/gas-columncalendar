@@ -31,25 +31,8 @@ function Event_(event, calendarName) {
 
 /**
  * @param {string} request.date - yyyy-mm-dd
- * @param {string} request.id - Google Calendar ID
- * @returns {Event_[]}
- * @see Event_
- */
-/* exported getCalendar */
-function getCalendar(request) {
-  var date = parseDateString_(request.date);
-  var cal = CalendarApp.getCalendarById(request.id);
-  var name = cal.getName();
-  var events = cal.getEventsForDay(date);
-  return events.filter(function (event) {
-    return ! event.isAllDayEvent();
-  }).map(function (event) {
-    return new Event_(event, name);
-  });
-}
-
-/**
- * @param {string} request.date - yyyy-mm-dd
+ * @param {integer} request.startingHour
+ * @param {integer} request.endingHour
  * @param {string[]} request.ids - Google Calendar IDs
  * @returns {Event_[][]}
  * @see Event_
@@ -58,13 +41,28 @@ function getCalendar(request) {
 function getCalendars(request) {
   var date = parseDateString_(request.date);
   var calendars = [];
+  var boundsCheck = function(calEvent) {
+    if (calEvent.isAllDayEvent()) {
+      return false;
+    }
+    var startHour = calEvent.getStartTime().getHours();
+    if (startHour < request.startingHour) {
+      return false;
+    }
+    var endHour = calEvent.getEndTime().getHours();
+    if (endHour < startHour) {
+      endHour += 24;
+    }
+    if (endHour > request.endingHour) {
+      return false;
+    }
+    return true;
+  };
   request.ids.forEach(function (id) {
     var cal = CalendarApp.getCalendarById(id);
     var name = cal.getName();
     var events = cal.getEventsForDay(date);
-    calendars.push(events.filter(function (event) {
-      return ! event.isAllDayEvent();
-    }).map(function (event) {
+    calendars.push(events.filter(boundsCheck).map(function (event) {
       return new Event_(event, name);
     }));
   });

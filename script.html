@@ -115,7 +115,7 @@ function calendarChange() {
   if (! inputsAreValid()) {
     return;
   }
-  getMultiCalendars(Array.from(cache.checkedIdSet));
+  goGetCalendars(Array.from(cache.checkedIdSet));
   calendar.empty();
 }
 
@@ -132,18 +132,26 @@ function getChecked() {
   return ids;
 }
 
-function getMultiCalendars(cachedIDs) {
-  const ids = cachedIDs || getChecked();
+function goGetCalendars(ids = getChecked()) {
   google.script.run
-    .withSuccessHandler((result) => {
+    .withSuccessHandler(result => {
       calendar.print(result.flat(), maps[mapSelect.value]);
-    }).getCalendars({ids, date: dateSelect.value});
+    }).getCalendars({
+      ids,
+      date: dateSelect.value,
+      startingHour: startingHourSelect.value,
+      endingHour: endingHourSelect.value,
+    });
 }
 
 function hourChange() {
+  if (! inputsAreValid()) {
+    window.alert("Starting hour must be at least one hour before ending hour");
+    return;
+  }
   setPreference(this.name, this.value);
   calendar[this.name] = +this.value;
-  calendar.print();
+  calendarChange();
 }
 
 /**
@@ -161,6 +169,9 @@ function initDate(dateInput) {
 
 function inputsAreValid() {
   if (! /\d{4}-\d{2}-\d{2}/.test(dateSelect.value)) { // yyyy-mm-dd
+    return false;
+  }
+  if (+startingHourSelect.value >= +endingHourSelect.value) {
     return false;
   }
   return true;
@@ -209,7 +220,7 @@ function makeMultiCalInput(calendars) {
   button.classList.add("create");
   button.style.float = "left";
   button.addEventListener("click", () => {
-    getMultiCalendars();
+    goGetCalendars();
     document.querySelector(".modal").remove();
   });
   container.appendChild(button);
@@ -248,13 +259,13 @@ function setPreference(key, value) {
   google.script.run.setPreferences(request);
 }
 
-function unlock(response) {
-  cache.calendars = response.ids.slice();
-  cache.preferences = response.preferences;
+function unlock({ids, preferences}) {
+  cache.calendars = ids.slice();
+  cache.preferences = preferences;
   idPickerButton.removeAttribute("disabled");
   mapSelect.removeAttribute("disabled");
-  startingHourSelect.value = cache.preferences.startingHour || 8;
-  endingHourSelect.value = cache.preferences.endingHour || 26;
+  calendar.startingHour = startingHourSelect.value = cache.preferences.startingHour || 8;
+  calendar.endingHour = endingHourSelect.value = cache.preferences.endingHour || 26;
   mapSelect.value = cache.preferences.map || "calendars";
   initDate(dateSelect);
   if (cache.preferences.ids) {
