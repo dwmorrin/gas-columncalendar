@@ -1,7 +1,6 @@
 <script>
 /* global google Calendar */
-let calendarCache = null;
-let checkedIdSet = null;
+const cache = {};
 const maps = {
   calendars: function(events) {
     events = events.slice();
@@ -71,11 +70,15 @@ const maps = {
     return result;
   },
 };
-const calendar = new Calendar(undefined, "7AM", "2AM");
+const calendar = new Calendar();
 const dateSelect = document.querySelector('input[type="date"]');
 const mapSelect = document.querySelector('select[name="map"]');
+const startingHourSelect = document.querySelector('select[name="startingHour"]');
+const endingHourSelect = document.querySelector('select[name="endingHour"]');
 const todayButton = document.querySelector('button[value="today"]');
 const idPickerButton = document.querySelector('button[value="idPicker"]');
+const preferencesButton = document.querySelector('button[value="preferences"]');
+const preferencesSpan = document.querySelector('#span__preferences');
 
 // event listeners
 todayButton.addEventListener("click", () => {
@@ -86,18 +89,23 @@ todayButton.addEventListener("click", () => {
   calendarChange();
 });
 idPickerButton.addEventListener("click", () => {
-  popup(makeMultiCalInput(calendarCache));
+  popup(makeMultiCalInput(cache.calendars));
+});
+preferencesButton.addEventListener("click", function() {
+  preferencesSpan.classList.toggle("hidden");
+  this.textContent = this.textContent.includes("Hide") ?
+    "Options" : "Hide Options";
 });
 dateSelect.addEventListener("change", calendarChange);
 mapSelect.addEventListener("change", mapChange);
+startingHourSelect.addEventListener("change", hourChange);
+endingHourSelect.addEventListener("change", hourChange);
 
 // initialize: get calendar IDs from server, initalize date select
+populateHourSelects(5, startingHourSelect, endingHourSelect);
 google.script.run
-  .withSuccessHandler((calendars) => {
-    calendarCache = calendars.slice();
-    unlock();
-  }).getAllCalendarIDs();
-initDate(dateSelect);
+  .withSuccessHandler(unlock)
+  .doGet({content: {type: "init"}});
 
 /**
  * calendarChange refreshes the calendar
@@ -107,7 +115,7 @@ function calendarChange() {
   if (! inputsAreValid()) {
     return;
   }
-  getMultiCalendars(Array.from(checkedIdSet));
+  goGetCalendars(Array.from(cache.checkedIdSet));
   calendar.empty();
 }
 
@@ -119,16 +127,31 @@ function getChecked() {
       ids.push(boxes[i].value);
     }
   }
-  checkedIdSet = new Set(ids);
+  cache.checkedIdSet = new Set(ids);
+  setPreference("ids", JSON.stringify(ids));
   return ids;
 }
 
-function getMultiCalendars(cachedIDs) {
-  const ids = cachedIDs || getChecked();
+function goGetCalendars(ids = getChecked()) {
   google.script.run
-    .withSuccessHandler((result) => {
+    .withSuccessHandler(result => {
       calendar.print(result.flat(), maps[mapSelect.value]);
-    }).getCalendars({ids, date: dateSelect.value});
+    }).getCalendars({
+      ids,
+      date: dateSelect.value,
+      startingHour: startingHourSelect.value,
+      endingHour: endingHourSelect.value,
+    });
+}
+
+function hourChange() {
+  if (! inputsAreValid()) {
+    window.alert("Starting hour must be at least one hour before ending hour");
+    return;
+  }
+  setPreference(this.name, this.value);
+  calendar[this.name] = +this.value;
+  calendarChange();
 }
 
 /**
@@ -148,13 +171,17 @@ function inputsAreValid() {
   if (! /\d{4}-\d{2}-\d{2}/.test(dateSelect.value)) { // yyyy-mm-dd
     return false;
   }
+  if (+startingHourSelect.value >= +endingHourSelect.value) {
+    return false;
+  }
   return true;
 }
 
 function mapChange() {
-  if (! inputsAreValid() || checkedIdSet === null) {
+  if (! inputsAreValid() || cache.checkedIdSet === null) {
     return;
   }
+  setPreference("map", mapSelect.value);
   calendar.print(null, maps[mapSelect.value]);
 }
 
@@ -175,7 +202,7 @@ function makeMultiCalInput(calendars) {
     checkbox.setAttribute("type", "checkbox");
     checkbox.setAttribute("name", "multical");
     checkbox.setAttribute("value", calendar.id);
-    if (checkedIdSet && checkedIdSet.has(calendar.id)) {
+    if (cache.checkedIdSet && cache.checkedIdSet.has(calendar.id)) {
       checkbox.setAttribute("checked", true);
     }
     checkbox.style.float = "right";
@@ -193,12 +220,26 @@ function makeMultiCalInput(calendars) {
   button.classList.add("create");
   button.style.float = "left";
   button.addEventListener("click", () => {
-    getMultiCalendars();
+    goGetCalendars();
     document.querySelector(".modal").remove();
   });
   container.appendChild(button);
   return container;
 }
+
+function populateHourSelects(startingHour, ...selects) {
+  selects.forEach(select => {
+    for (let i = startingHour; i < 24 + startingHour; ++i) {
+      const ampm = (i < 12 || i > 23) ? "AM" : "PM";
+      const hour = (i === 12 || i === 24) ? "12" : i % 12;
+      const option = document.createElement("option");
+      option.textContent = `${hour} ${ampm}`;
+      option.setAttribute("value", i);
+      select.appendChild(option);
+    }
+  });
+}
+    
 
 function popup(child) {
   const modal = document.createElement("div");
@@ -212,9 +253,27 @@ function popup(child) {
   document.body.appendChild(modal);
 }
 
-function unlock() {
+function setPreference(key, value) {
+  const request = {preferences: {}};
+  request.preferences[key] = value;
+  google.script.run.setPreferences(request);
+}
+
+function unlock({ids, preferences}) {
+  cache.calendars = ids.slice();
+  cache.preferences = preferences;
   idPickerButton.removeAttribute("disabled");
   mapSelect.removeAttribute("disabled");
-  popup(makeMultiCalInput(calendarCache));
+  calendar.startingHour = startingHourSelect.value = cache.preferences.startingHour || 8;
+  calendar.endingHour = endingHourSelect.value = cache.preferences.endingHour || 26;
+  mapSelect.value = cache.preferences.map || "calendars";
+  initDate(dateSelect);
+  if (cache.preferences.ids) {
+    cache.checkedIdSet = new Set(JSON.parse(cache.preferences.ids));
+    calendarChange();
+  } else {
+    popup(makeMultiCalInput(cache.calendars));
+  }
 }
+
 </script>
