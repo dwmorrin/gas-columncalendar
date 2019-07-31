@@ -77,6 +77,8 @@ const startingHourSelect = document.querySelector('select[name="startingHour"]')
 const endingHourSelect = document.querySelector('select[name="endingHour"]');
 const todayButton = document.querySelector('button[value="today"]');
 const idPickerButton = document.querySelector('button[value="idPicker"]');
+const preferencesButton = document.querySelector('button[value="preferences"]');
+const preferencesSpan = document.querySelector('#span__preferences');
 
 // event listeners
 todayButton.addEventListener("click", () => {
@@ -88,6 +90,11 @@ todayButton.addEventListener("click", () => {
 });
 idPickerButton.addEventListener("click", () => {
   popup(makeMultiCalInput(cache.calendars));
+});
+preferencesButton.addEventListener("click", function() {
+  preferencesSpan.classList.toggle("hidden");
+  this.textContent = this.textContent.includes("Hide") ?
+    "Options" : "Hide Options";
 });
 dateSelect.addEventListener("change", calendarChange);
 mapSelect.addEventListener("change", mapChange);

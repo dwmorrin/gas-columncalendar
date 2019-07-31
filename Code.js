@@ -1,7 +1,7 @@
 /* exported doGet */
 function doGet(request) {
   if (! request.content) {
-    var template = HtmlService.createTemplateFromFile("Index");
+    var template = HtmlService.createTemplateFromFile("index");
     var html = template.evaluate();
     html.setTitle("Column Calendar Demo");
     return html;
