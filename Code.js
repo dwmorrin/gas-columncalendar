@@ -17,7 +17,7 @@ function doGet(request) {
  * @returns object
  */
 function Event_(event, calendarName) {
-  this.name = event.getTitle();
+  this.title = event.getTitle();
   this.startHour = event.getStartTime().getHours();
   this.startMinutes = event.getStartTime().getMinutes();
   var endHour = event.getEndTime().getHours();

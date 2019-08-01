@@ -1,0 +1,74 @@
+<script>
+const maps = Object.create(null);
+/**
+ * calendars is a map for Calendar.print
+ *   organizes columns by calendar
+ */
+maps.calendars = events => {
+  events = events.slice();
+  events.sort((a, b) => {
+    if (a.originalCalendarId < b.originalCalendarId) {
+      return -1;
+    }
+    if (a.originalCalendarId > b.originalCalendarId) {
+      return 1;
+    }
+    return 0;
+  });
+  const result = [];
+  while (events.length) {
+    const calId = events[0].originalCalendarId;
+    const name = events[0].calendarName;
+    const nextCalIndex = events
+      .findIndex(event => event.originalCalendarId !== calId);
+    result.push({
+      name,
+      events: events.splice(0, (nextCalIndex === -1 ?
+        events.length : nextCalIndex)),
+    });
+  }
+  return result;
+};
+   
+/**
+ * titles is a map for Calendar.print
+ *   organizes the columns by title
+ */
+maps.titles = events => {
+  const titles = new Set();
+  events.forEach(event => {
+    titles.add(event.title);
+  });
+  const result = [];
+  titles.forEach(title => {
+    result.push({
+      name: title,
+      events: events.filter(event => event.title === title),
+    });
+  });
+  return result;
+};
+
+/**
+ * locations is a map for Calendar.print
+ *   organizes the columns into locations
+ *   (events without locations are ignored)
+ */
+maps.locations = events => {
+  const locations = new Set();
+  events.forEach(event => {
+    if (! event.location) {
+      return;
+    }
+    locations.add(event.location);
+  });
+  const result = [];
+  locations.forEach(location => {
+    result.push({
+      name: location,
+      events: events.filter(event => event.location === location),
+    });
+  });
+  return result;
+};
+</script>

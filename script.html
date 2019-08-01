@@ -1,84 +1,27 @@
 <script>
-/* global google Calendar */
-const cache = {};
-const maps = {
-  calendars: function(events) {
-    events = events.slice();
-    events.sort((a, b) => {
-      if (a.originalCalendarId < b.originalCalendarId) {
-        return -1;
-      }
-      if (a.originalCalendarId > b.originalCalendarId) {
-        return 1;
-      }
-      return 0;
-    });
-    const result = [];
-    while (events.length) {
-      const calId = events[0].originalCalendarId;
-      const name = events[0].calendarName;
-      const nextCalIndex = events
-        .findIndex(event => event.originalCalendarId !== calId);
-      result.push({
-        name,
-        events: events.splice(0, (nextCalIndex === -1 ?
-          events.length : nextCalIndex)),
-      });
-    }
-    return result;
-  },
-     
-  /**
-   * columnsByName is a map for Calendar.print
-   * this organizes the columns by name
-   */
-  titles: function (events) {
-    const names = new Set();
-    events.forEach(event => {
-      names.add(event.name);
-    });
-    const result = [];
-    names.forEach(name => {
-      result.push({
-        name,
-        events: events.filter(event => event.name === name),
-      });
-    });
-    return result;
-  },
+/* global google Calendar maps */
+/**
+ * cache is a dictionary containing
+ *   calendars {Object[]} - each has .name and .id properties
+ *   checkedIdSet {string Set} - saves the user's calendar selections
+ *   preferences {Calendar} - dictionary of user prefernces
+ */
+const cache = Object.create(null);
 
-  /**
-   * columnsByLocation is a map for Calendar.print
-   * this organizes the columns into locations
-   * events without locations are ignored
-   */
-  locations: function (events) {
-    const locations = new Set();
-    events.forEach(event => {
-      if (! event.location) {
-        return;
-      }
-      locations.add(event.location);
-    });
-    const result = [];
-    locations.forEach(location => {
-      result.push({
-        name: location,
-        events: events.filter(event => event.location === location),
-      });
-    });
-    return result;
-  },
-};
+/**
+ * // {@link https://github.com/dwmorrin/columncalendar}
+ */
 const calendar = new Calendar();
+
+// UI elements
 const dateSelect = document.querySelector('input[type="date"]');
-const mapSelect = document.querySelector('select[name="map"]');
-const startingHourSelect = document.querySelector('select[name="startingHour"]');
 const endingHourSelect = document.querySelector('select[name="endingHour"]');
-const todayButton = document.querySelector('button[value="today"]');
 const idPickerButton = document.querySelector('button[value="idPicker"]');
+const mapSelect = document.querySelector('select[name="map"]');
 const preferencesButton = document.querySelector('button[value="preferences"]');
 const preferencesSpan = document.querySelector('#span__preferences');
+const startingHourSelect = document.querySelector('select[name="startingHour"]');
+const todayButton = document.querySelector('button[value="today"]');
 
 // event listeners
 todayButton.addEventListener("click", () => {
@@ -107,6 +50,8 @@ google.script.run
   .withSuccessHandler(unlock)
   .doGet({content: {type: "init"}});
 
+// function definitions
+
 /**
  * calendarChange refreshes the calendar
  * both the date and calendar select values must be valid
@@ -132,6 +77,9 @@ function getChecked() {
   return ids;
 }
 
+/**
+ * @see maps.html
+ */
 function goGetCalendars(ids = getChecked()) {
   google.script.run
     .withSuccessHandler(result => {
@@ -177,6 +125,9 @@ function inputsAreValid() {
   return true;
 }
 
+/**
+ * @see maps.html
+ */
 function mapChange() {
   if (! inputsAreValid() || cache.checkedIdSet === null) {
     return;
@@ -194,7 +145,7 @@ function makeMultiCalInput(calendars) {
   const container = document.createElement("div");
   const heading = document.createElement("h3");
   heading.textContent = "Select calendars";
-  heading.style.marginTop = "0";
+  heading.classList.add("modal__header");
   container.appendChild(heading);
   calendars.forEach((calendar, index) => {
     const wrapper = document.createElement("div");
@@ -205,7 +156,6 @@ function makeMultiCalInput(calendars) {
     if (cache.checkedIdSet && cache.checkedIdSet.has(calendar.id)) {
       checkbox.setAttribute("checked", true);
     }
-    checkbox.style.float = "right";
     const id = `calendar__checkbox__${index}`;
     checkbox.setAttribute("id", id);
     const label = document.createElement("label");
@@ -217,8 +167,7 @@ function makeMultiCalInput(calendars) {
   });
   const button = document.createElement("button");
   button.textContent = "Show Calendars";
-  button.classList.add("create");
-  button.style.float = "left";
+  button.classList.add("create", "modal__button");
   button.addEventListener("click", () => {
     goGetCalendars();
     document.querySelector(".modal").remove();
@@ -275,5 +224,4 @@ function unlock({ids, preferences}) {
     popup(makeMultiCalInput(cache.calendars));
   }
 }
-
 </script>
