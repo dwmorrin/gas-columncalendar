@@ -45,7 +45,11 @@ function getCalendars(request) {
     if (calEvent.isAllDayEvent()) {
       return false;
     }
-    var startHour = calEvent.getStartTime().getHours();
+    var start = calEvent.getStartTime();
+    if (start.getDate() !== date.getDate()) {
+      return false;
+    }
+    var startHour = start.getHours();
     if (startHour < request.startingHour) {
       return false;
     }
@@ -71,12 +75,22 @@ function getCalendars(request) {
 
 /* exported getAllCalendarIDs */
 function getAllCalendarIDs() {
-  return CalendarApp.getAllCalendars().map(function (cal) {
+  var calendars = CalendarApp.getAllCalendars().map(function (cal) {
     return {
       id: cal.getId(),
       name: cal.getName(),
       isMyPrimaryCalendar: cal.isMyPrimaryCalendar()};
   });
+  calendars.sort(function (a, b) {
+    if (a.name < b.name) {
+      return -1;
+    }
+    if (a.name > b.name) {
+      return 1;
+    }
+    return 0;
+  });
+  return calendars;
 }
 
 /* exported getPreferences */
