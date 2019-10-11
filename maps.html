@@ -27,6 +27,15 @@ maps.calendars = events => {
         events.length : nextCalIndex)),
     });
   }
+  result.sort(function (a, b) {
+    if (a.name < b.name) {
+      return -1;
+    }
+    if (a.name > b.name) {
+      return 1;
+    }
+    return 0;
+  });
   return result;
 };
    
@@ -67,6 +76,26 @@ maps.locations = events => {
     result.push({
       name: location,
       events: events.filter(event => event.location === location),
+    });
+  });
+  return result;
+};
+
+maps.embeddedLocations = events => {
+  const locations = new Set();
+  events.forEach(event => {
+    const embeddedLocation = /370J_(.*)$/.exec(event.title);
+    if (! embeddedLocation) {
+      return;
+    }
+    event.title = event.title.replace(/REMU-UT \d{4}(\.\d{3})?[ -]?/, "");
+    locations.add(embeddedLocation[1]);
+  });
+  const result = [];
+  locations.forEach(location => {
+    result.push({
+      name: location,
+      events: events.filter(event => event.title.includes(location)),
     });
   });
   return result;
